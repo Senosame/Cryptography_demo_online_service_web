@@ -33,6 +33,15 @@ local_shop.db
 - Tạo đơn hàng.
 - Xác nhận hoặc hủy thanh toán giả lập.
 - Xem các đơn hàng gần đây.
+- Các endpoint lab để demo MitM, XSS đánh cắp JWT, webhook giả mạo và SQL Injection bằng Burp/ZAP/Postman.
+
+## Demo lỗi bảo mật
+
+Các demo bảo mật không hiển thị trên UI chính. Dùng tool như Burp Suite, OWASP ZAP, Postman hoặc curl theo hướng dẫn:
+
+```text
+SECURITY_DEMO.md
+```
 
 ## Reset dữ liệu local
 

@@ -90,6 +90,7 @@
               <option value="card">Thanh toán thẻ</option>
               <option value="wallet">Thanh toán ví điện tử</option>
             </select>
+            <textarea id="shipping-note" placeholder="Ghi chú giao hàng"></textarea>
             <button onclick="checkout()">Tạo đơn hàng</button>
             <button class="secondary" id="pay-success" onclick="pay('success')" disabled>Xác nhận thanh toán</button>
             <button class="danger" id="pay-fail" onclick="pay('fail')" disabled>Hủy thanh toán</button>
@@ -105,6 +106,7 @@
         </div>
       </aside>
     </section>
+
   </main>
 
   <footer>
@@ -226,10 +228,12 @@
           method: 'POST',
           body: JSON.stringify({
             items: cart,
-            payment_method: document.getElementById('payment-method').value
+            payment_method: document.getElementById('payment-method').value,
+            shipping_note: document.getElementById('shipping-note').value
           })
         });
         pendingOrderId = data.order_id;
+        document.getElementById('webhook-order-id').value = data.order_id;
         document.getElementById('pay-success').disabled = false;
         document.getElementById('pay-fail').disabled = false;
         flash(`Đã tạo đơn #${data.order_id}. Vui lòng xác nhận thanh toán.`);
@@ -277,6 +281,7 @@
             </div>
             <div class="muted">${money.format(order.total_price)} · ${order.payment_method}</div>
             <div class="muted">${order.gateway_transaction_id || 'Chưa có mã giao dịch'}</div>
+            ${order.shipping_note ? `<div class="muted">Ghi chú: ${order.shipping_note}</div>` : ''}
           </div>
         `).join('');
       } catch (_) {

@@ -82,13 +82,20 @@ button:disabled {
 }
 
 input,
-select {
+select,
+textarea {
   border: 1px solid var(--line);
   border-radius: 7px;
   background: #fff;
   min-height: 40px;
   padding: 9px 11px;
   color: var(--ink);
+}
+
+textarea {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
 }
 
 .site-header {

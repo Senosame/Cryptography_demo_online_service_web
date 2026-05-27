@@ -49,6 +49,7 @@ def init_db():
             user_id INTEGER NOT NULL,
             total_price REAL NOT NULL,
             items_json TEXT NOT NULL,
+            shipping_note TEXT,
             status TEXT NOT NULL DEFAULT 'PENDING',
             payment_method TEXT NOT NULL DEFAULT 'card',
             gateway_provider TEXT,
@@ -56,8 +57,21 @@ def init_db():
             order_date TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
+    cursor.execute("PRAGMA table_info(orders)")
+    order_columns = {row["name"] for row in cursor.fetchall()}
+    if "shipping_note" not in order_columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN shipping_note TEXT")
+
     cursor.execute("SELECT COUNT(*) AS count FROM products")
     if cursor.fetchone()["count"] == 0:
         cursor.executemany(
@@ -276,13 +290,14 @@ def create_order():
 
     cursor = conn.execute(
         """
-        INSERT INTO orders (user_id, total_price, items_json, status, payment_method)
-        VALUES (?, ?, ?, 'PENDING', ?)
+        INSERT INTO orders (user_id, total_price, items_json, shipping_note, status, payment_method)
+        VALUES (?, ?, ?, ?, 'PENDING', ?)
         """,
         (
             session["user_id"],
             total,
             json.dumps(normalized_items, ensure_ascii=False),
+            data.get("shipping_note", ""),
             data.get("payment_method", "card"),
         ),
     )
@@ -373,6 +388,60 @@ def payment_webhook(payload=None):
     )
 
 
+@app.get("/api/payments/search-vulnerable")
+def vulnerable_payment_search():
+    transaction_id = request.args.get("transaction_id", "")
+    # Vulnerable on purpose for the lab: raw string interpolation enables SQL injection.
+    sql = (
+        "SELECT id, total_price, status, payment_method, gateway_provider, "
+        "gateway_transaction_id, order_date FROM orders "
+        f"WHERE gateway_transaction_id = '{transaction_id}'"
+    )
+
+    conn = get_db()
+    try:
+        rows = conn.execute(sql).fetchall()
+        return jsonify(
+            {
+                "status": "success",
+                "vulnerable_sql": sql,
+                "rows": [row_to_dict(row) for row in rows],
+            }
+        )
+    except sqlite3.Error as exc:
+        return jsonify({"status": "error", "vulnerable_sql": sql, "message": str(exc)}), 400
+    finally:
+        conn.close()
+
+
+@app.post("/api/reviews")
+def create_review():
+    data = request.get_json(force=True)
+    content = data.get("content", "")
+    username = session.get("username", "guest")
+    user_id = session.get("user_id")
+
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO reviews (user_id, username, content) VALUES (?, ?, ?)",
+        (user_id, username, content),
+    )
+    conn.commit()
+    review_id = cursor.lastrowid
+    conn.close()
+    return jsonify({"status": "success", "id": review_id, "message": "Review saved."})
+
+
+@app.get("/api/reviews")
+def reviews():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, username, content, created_at FROM reviews ORDER BY id DESC LIMIT 20"
+    ).fetchall()
+    conn.close()
+    return jsonify([row_to_dict(row) for row in rows])
+
+
 @app.get("/api/orders/latest")
 def latest_orders():
     if "user_id" not in session:
@@ -381,7 +450,7 @@ def latest_orders():
     conn = get_db()
     rows = conn.execute(
         """
-        SELECT id, total_price, status, payment_method, gateway_provider,
+        SELECT id, total_price, shipping_note, status, payment_method, gateway_provider,
                gateway_transaction_id, order_date
         FROM orders
         WHERE user_id = ?
