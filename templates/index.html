@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Socrates Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark">S</span>
+        <span>Socrates Shop</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#products">Sản phẩm</a>
+        <a href="#cart">Giỏ hàng</a>
+        <a href="#orders">Đơn hàng</a>
+      </nav>
+
+      <div class="auth">
+        {% if user %}
+          <span class="hello">Xin chào, <strong>{{ user }}</strong></span>
+          <a class="button secondary" href="/logout">Đăng xuất</a>
+        {% else %}
+          <input id="username" autocomplete="username" placeholder="Tên đăng nhập">
+          <input id="password" autocomplete="current-password" type="password" placeholder="Mật khẩu">
+          <button onclick="auth('login')">Đăng nhập</button>
+          <button class="secondary" onclick="auth('register')">Đăng ký</button>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Cửa hàng công nghệ sinh viên</p>
+        <h1>Thiết bị học tập và phụ kiện công nghệ cho lab của bạn</h1>
+        <p class="hero-copy">
+          Mua nhanh các sản phẩm demo, thêm vào giỏ hàng và thanh toán thử trên môi trường local.
+        </p>
+        <div class="hero-actions">
+          <a class="button" href="#products">Xem sản phẩm</a>
+          <a class="button secondary" href="#cart">Mở giỏ hàng</a>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="metric">
+          <strong>4</strong>
+          <span>Sản phẩm mẫu</span>
+        </div>
+        <div class="metric">
+          <strong>Local</strong>
+          <span>SQLite, không cần Docker</span>
+        </div>
+        <div class="metric">
+          <strong>Demo</strong>
+          <span>Đăng nhập, giỏ hàng, thanh toán</span>
+        </div>
+      </div>
+    </section>
+
+    <div id="status" class="status"></div>
+
+    <section class="layout">
+      <div class="products" id="products">
+        <div class="section-head">
+          <div>
+            <p class="section-label">Danh mục</p>
+            <h2>Sản phẩm nổi bật</h2>
+          </div>
+          <button class="secondary" onclick="loadProducts()">Tải lại</button>
+        </div>
+        <div id="product-grid" class="grid"></div>
+      </div>
+
+      <aside class="side">
+        <div class="cart" id="cart">
+          <div class="section-head compact">
+            <h2>Giỏ hàng</h2>
+            <span id="cart-count" class="count">0</span>
+          </div>
+          <div id="cart-list" class="cart-list"></div>
+          <div class="total"><span>Tổng</span><span id="total">0 đ</span></div>
+          <div class="checkout-controls">
+            <select id="payment-method">
+              <option value="card">Thanh toán thẻ</option>
+              <option value="wallet">Thanh toán ví điện tử</option>
+            </select>
+            <button onclick="checkout()">Tạo đơn hàng</button>
+            <button class="secondary" id="pay-success" onclick="pay('success')" disabled>Xác nhận thanh toán</button>
+            <button class="danger" id="pay-fail" onclick="pay('fail')" disabled>Hủy thanh toán</button>
+          </div>
+        </div>
+
+        <div class="orders" id="orders">
+          <div class="section-head compact">
+            <h2>Đơn gần đây</h2>
+            <button class="ghost" onclick="loadOrders()">Làm mới</button>
+          </div>
+          <div id="order-list" class="order-list"></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Socrates Shop</span>
+      <span>Demo web bán hàng local cho đồ án.</span>
+    </div>
+  </footer>
+
+  <script>
+    let products = [];
+    let cart = JSON.parse(localStorage.getItem('mmh_cart') || '[]');
+    let pendingOrderId = null;
+
+    const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+
+    function flash(message) {
+      const box = document.getElementById('status');
+      box.textContent = message;
+      box.classList.add('show');
+      window.setTimeout(() => box.classList.remove('show'), 4500);
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Yêu cầu thất bại.');
+      return data;
+    }
+
+    async function auth(mode) {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      try {
+        const data = await api('/api/' + mode, {
+          method: 'POST',
+          body: JSON.stringify({ username, password })
+        });
+        if (data.jwt) localStorage.setItem('mmh_jwt', data.jwt);
+        window.location.reload();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    async function loadProducts() {
+      try {
+        products = await api('/api/products');
+        const grid = document.getElementById('product-grid');
+        grid.innerHTML = products.map((p) => `
+          <article class="product">
+            <div class="product-media">${p.name.slice(0, 1)}</div>
+            <div class="product-body">
+              <h3>${p.name}</h3>
+              <p>${p.description}</p>
+              <div class="product-bottom">
+                <span class="price">${money.format(p.price)}</span>
+                <button onclick="addToCart(${p.id})">Thêm</button>
+              </div>
+            </div>
+          </article>
+        `).join('');
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    function addToCart(id) {
+      const existing = cart.find((item) => item.id === id);
+      if (existing) existing.quantity += 1;
+      else cart.push({ id, quantity: 1 });
+      saveCart();
+      renderCart();
+      flash('Đã thêm sản phẩm vào giỏ hàng.');
+    }
+
+    function saveCart() {
+      localStorage.setItem('mmh_cart', JSON.stringify(cart));
+    }
+
+    function removeFromCart(id) {
+      cart = cart.filter((item) => item.id !== id);
+      saveCart();
+      renderCart();
+    }
+
+    function renderCart() {
+      const list = document.getElementById('cart-list');
+      let total = 0;
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('cart-count').textContent = count;
+
+      if (!cart.length) {
+        list.innerHTML = '<div class="empty">Chưa có sản phẩm trong giỏ.</div>';
+      } else {
+        list.innerHTML = cart.map((item) => {
+          const product = products.find((p) => p.id === item.id) || { name: 'Sản phẩm', price: 0 };
+          total += product.price * item.quantity;
+          return `
+            <div class="line-item">
+              <div>
+                <strong>${product.name}</strong>
+                <div class="muted">Số lượng ${item.quantity} · ${money.format(product.price * item.quantity)}</div>
+              </div>
+              <button class="ghost danger-text" onclick="removeFromCart(${item.id})">Xóa</button>
+            </div>
+          `;
+        }).join('');
+      }
+      document.getElementById('total').textContent = money.format(total);
+    }
+
+    async function checkout() {
+      try {
+        const data = await api('/api/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: cart,
+            payment_method: document.getElementById('payment-method').value
+          })
+        });
+        pendingOrderId = data.order_id;
+        document.getElementById('pay-success').disabled = false;
+        document.getElementById('pay-fail').disabled = false;
+        flash(`Đã tạo đơn #${data.order_id}. Vui lòng xác nhận thanh toán.`);
+        await loadOrders();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    async function pay(result) {
+      if (!pendingOrderId) return;
+      try {
+        const data = await api('/api/payments/mock', {
+          method: 'POST',
+          body: JSON.stringify({ order_id: pendingOrderId, result })
+        });
+        flash(data.message);
+        if (result === 'success') {
+          cart = [];
+          saveCart();
+          renderCart();
+        }
+        pendingOrderId = null;
+        document.getElementById('pay-success').disabled = true;
+        document.getElementById('pay-fail').disabled = true;
+        await loadOrders();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    async function loadOrders() {
+      try {
+        const orders = await api('/api/orders/latest');
+        const list = document.getElementById('order-list');
+        if (!orders.length) {
+          list.innerHTML = '<div class="empty">Chưa có đơn hàng.</div>';
+          return;
+        }
+        list.innerHTML = orders.map((order) => `
+          <div class="order-item">
+            <div>
+              <strong>Đơn #${order.id}</strong>
+              <span class="pill ${order.status}">${order.status}</span>
+            </div>
+            <div class="muted">${money.format(order.total_price)} · ${order.payment_method}</div>
+            <div class="muted">${order.gateway_transaction_id || 'Chưa có mã giao dịch'}</div>
+          </div>
+        `).join('');
+      } catch (_) {
+        document.getElementById('order-list').innerHTML = '<div class="empty">Đăng nhập để xem đơn hàng.</div>';
+      }
+    }
+
+    async function boot() {
+      await loadProducts();
+      renderCart();
+      await loadOrders();
+    }
+
+    boot();
+  </script>
+</body>
+</html>
