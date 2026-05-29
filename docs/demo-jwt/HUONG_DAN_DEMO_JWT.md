@@ -208,20 +208,7 @@ Kết quả đúng:
 /api/jwt/insecure-admin 200
 ```
 
-## 10. Nói khi thuyết trình
-
-Bạn có thể nói theo kịch bản ngắn này:
-
-```text
-Đầu tiên em đăng nhập bằng user bình thường, server cấp JWT có role=user.
-Sau đó em sửa payload JWT thành role=admin và ký lại bằng secret sai.
-Endpoint /api/jwt/profile có verify signature nên trả về lỗi 401.
-Nhưng endpoint /api/jwt/insecure-admin lại dùng verify_signature=False, chỉ đọc payload mà không kiểm tra chữ ký.
-Vì vậy server tin role=admin trong token giả mạo và cho truy cập admin.
-Đây là lỗi JWT signature verification bypass, có thể dẫn đến leo quyền.
-```
-
-## 11. Hướng khắc phục
+## 10. Hướng khắc phục
 
 - Không dùng `verify_signature=False` trong endpoint cần xác thực.
 - Luôn verify JWT bằng secret hoặc public key đúng.
@@ -230,7 +217,7 @@ Vì vậy server tin role=admin trong token giả mạo và cho truy cập admin
 - Không tin `role` trong token nếu token chưa được verify.
 - Nên lưu token trong cookie `HttpOnly`, `Secure`, `SameSite` thay vì `localStorage`.
 
-## 12. Phần bổ sung: đã sửa lỗi như thế nào
+## 11. Phần bổ sung: đã sửa lỗi như thế nào
 
 Sau khi demo xong lỗi, phần code cần được sửa ở endpoint:
 
@@ -277,12 +264,13 @@ JWT thật role=user -> 403
 
 Chỉ JWT hợp lệ và có `role=admin` mới được truy cập admin.
 
-Kịch bản nói sau khi khắc phục:
+## 12. Ảnh demo
+![alt text](image.png)
 
-```text
-Ban đầu endpoint admin bị lỗi vì decode JWT mà không verify chữ ký.
-Em đã sửa lại để server verify JWT bằng JWT_SECRET và thuật toán HS256.
-Sau khi sửa, token giả mạo role=admin không còn truy cập được nữa.
-Nếu token bị sửa hoặc ký bằng secret sai, server trả về lỗi 401.
-Như vậy lỗi leo quyền bằng JWT đã được khắc phục.
-```
+![alt text](image-2.png)
+
+![alt text](image-3.png)
+
+![alt text](image-4.png)
+
+![alt text](image-5.png)
