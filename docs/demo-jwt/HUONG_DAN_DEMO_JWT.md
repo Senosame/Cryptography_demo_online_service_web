@@ -225,14 +225,6 @@ Sau khi demo xong lỗi, phần code cần được sửa ở endpoint:
 GET /api/jwt/insecure-admin
 ```
 
-Trước khi sửa, endpoint này decode JWT nhưng tắt kiểm tra chữ ký:
-
-```python
-jwt.decode(token, options={"verify_signature": False})
-```
-
-Đây là nguyên nhân làm token giả mạo vẫn được server tin tưởng.
-
 Sau khi sửa, server phải verify chữ ký JWT bằng secret thật:
 
 ```python
