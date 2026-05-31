@@ -14,112 +14,127 @@
         <span>Socrates Shop</span>
       </a>
 
-      <nav class="nav-links" aria-label="Main navigation">
-        <a href="#products">Sản phẩm</a>
-        <a href="#cart">Giỏ hàng</a>
-        <a href="#orders">Đơn hàng</a>
+      <nav class="nav-links" aria-label="Dieu huong chinh">
+        <a href="#products">S&#7843;n ph&#7849;m</a>
+        <a href="#orders">&#272;&#417;n h&#224;ng</a>
+        <a href="/seller">K&#234;nh ng&#432;&#7901;i b&#225;n</a>
       </nav>
 
       <div class="auth">
+        <button class="cart-button" onclick="openCart()" aria-label="Mo gio hang">
+          <span class="cart-icon" aria-hidden="true">GH</span>
+          <span>Gi&#7887; h&#224;ng</span>
+          <span id="header-cart-count" class="cart-badge">0</span>
+        </button>
         {% if user %}
-          <span class="hello">Xin chào, <strong>{{ user }}</strong></span>
-          <a class="button secondary" href="/logout">Đăng xuất</a>
+          <div class="account-chip">
+            <span class="avatar">{{ user[:1]|upper }}</span>
+            <span>Xin ch&#224;o, <strong>{{ user }}</strong></span>
+          </div>
+          <a class="icon-button logout-button" href="/logout" title="Dang xuat" aria-label="Dang xuat">
+            <span aria-hidden="true">-&gt;</span>
+          </a>
         {% else %}
-          <input id="username" autocomplete="username" placeholder="Tên đăng nhập">
-          <input id="password" autocomplete="current-password" type="password" placeholder="Mật khẩu">
-          <button onclick="auth('login')">Đăng nhập</button>
-          <button class="secondary" onclick="auth('register')">Đăng ký</button>
+          <button class="secondary" onclick="openAuth('register')">&#272;&#259;ng k&#253;</button>
+          <button onclick="openAuth('login')">&#272;&#259;ng nh&#7853;p</button>
         {% endif %}
       </div>
     </div>
   </header>
 
   <main>
-    <section class="hero">
-      <div>
-        <p class="eyebrow">Cửa hàng công nghệ sinh viên</p>
-        <h1>Thiết bị học tập và phụ kiện công nghệ cho lab của bạn</h1>
-        <p class="hero-copy">
-          Mua nhanh các sản phẩm demo, thêm vào giỏ hàng và thanh toán thử trên môi trường local.
-        </p>
-        <div class="hero-actions">
-          <a class="button" href="#products">Xem sản phẩm</a>
-          <a class="button secondary" href="#cart">Mở giỏ hàng</a>
-        </div>
-      </div>
-      <div class="hero-panel">
-        <div class="metric">
-          <strong>4</strong>
-          <span>Sản phẩm mẫu</span>
-        </div>
-        <div class="metric">
-          <strong>Local</strong>
-          <span>SQLite, không cần Docker</span>
-        </div>
-        <div class="metric">
-          <strong>Demo</strong>
-          <span>Đăng nhập, giỏ hàng, thanh toán</span>
-        </div>
-      </div>
-    </section>
-
     <div id="status" class="status"></div>
 
     <section class="layout">
       <div class="products" id="products">
         <div class="section-head">
           <div>
-            <p class="section-label">Danh mục</p>
-            <h2>Sản phẩm nổi bật</h2>
+            <p class="section-label">Danh m&#7909;c</p>
+            <h2>S&#7843;n ph&#7849;m n&#7893;i b&#7853;t</h2>
           </div>
-          <button class="secondary" onclick="loadProducts()">Tải lại</button>
+          <div class="product-tools">
+            <label class="search-box" aria-label="Tim kiem san pham">
+              <span aria-hidden="true">TK</span>
+              <input id="product-search" type="search" placeholder="Tìm sản phẩm, shop..." oninput="renderProducts()">
+            </label>
+            <button class="secondary" onclick="loadProducts()">T&#7843;i l&#7841;i</button>
+          </div>
         </div>
         <div id="product-grid" class="grid"></div>
       </div>
 
-      <aside class="side">
-        <div class="cart" id="cart">
-          <div class="section-head compact">
-            <h2>Giỏ hàng</h2>
-            <span id="cart-count" class="count">0</span>
-          </div>
-          <div id="cart-list" class="cart-list"></div>
-          <div class="total"><span>Tổng</span><span id="total">0 đ</span></div>
-          <div class="checkout-controls">
-            <select id="payment-method">
-              <option value="card">Thanh toán thẻ</option>
-              <option value="wallet">Thanh toán ví điện tử</option>
-            </select>
-            <textarea id="shipping-note" placeholder="Ghi chú giao hàng"></textarea>
-            <button onclick="checkout()">Tạo đơn hàng</button>
-            <button class="secondary" id="pay-success" onclick="pay('success')" disabled>Xác nhận thanh toán</button>
-            <button class="danger" id="pay-fail" onclick="pay('fail')" disabled>Hủy thanh toán</button>
-          </div>
+      <div class="orders" id="orders">
+        <div class="section-head compact">
+          <h2>&#272;&#417;n g&#7847;n &#273;&#226;y</h2>
+          <button class="ghost" onclick="loadOrders()">L&#224;m m&#7899;i</button>
         </div>
-
-        <div class="orders" id="orders">
-          <div class="section-head compact">
-            <h2>Đơn gần đây</h2>
-            <button class="ghost" onclick="loadOrders()">Làm mới</button>
-          </div>
-          <div id="order-list" class="order-list"></div>
-        </div>
-      </aside>
+        <div id="order-list" class="order-list"></div>
+      </div>
     </section>
-
   </main>
 
   <footer>
     <div class="footer-inner">
       <span>Socrates Shop</span>
-      <span>Demo web bán hàng local cho đồ án.</span>
+      <span>Demo web b&#225;n h&#224;ng local cho &#273;&#7891; &#225;n.</span>
     </div>
   </footer>
+
+  <div class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-drawer-backdrop" onclick="closeCart()"></div>
+    <aside class="cart cart-drawer-panel" id="cart" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+      <button class="icon-button close-button cart-close" onclick="closeCart()" aria-label="Dong">x</button>
+      <div class="cart-shop-logo">
+        <span class="cart-shop-mark">S</span>
+        <div>
+          <strong>Socrates Shop</strong>
+          <span>Khu v&#7921;c mua h&#224;ng</span>
+        </div>
+      </div>
+      <div class="section-head compact">
+        <h2 id="cart-title">Gi&#7887; h&#224;ng</h2>
+        <span id="cart-count" class="count">0</span>
+      </div>
+      <div id="cart-list" class="cart-list"></div>
+      <div class="total"><span>T&#7893;ng</span><span id="total">0 d</span></div>
+      <a class="button checkout-link" href="/checkout">&#272;&#7871;n trang thanh to&#225;n</a>
+    </aside>
+  </div>
+
+  {% if not user %}
+  <div class="auth-modal" id="auth-modal" aria-hidden="true">
+    <div class="auth-backdrop" onclick="closeAuth()"></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <button class="icon-button close-button" onclick="closeAuth()" aria-label="Dong">x</button>
+      <div class="auth-card-head">
+        <span class="auth-badge">S</span>
+        <div>
+          <p class="section-label">T&#224;i kho&#7843;n</p>
+          <h2 id="auth-title">&#272;&#259;ng nh&#7853;p</h2>
+        </div>
+      </div>
+      <div class="auth-tabs" role="tablist">
+        <button id="login-tab" class="active" onclick="setAuthMode('login')">&#272;&#259;ng nh&#7853;p</button>
+        <button id="register-tab" onclick="setAuthMode('register')">&#272;&#259;ng k&#253;</button>
+      </div>
+      <div id="auth-alert" class="form-alert" role="alert"></div>
+      <label>
+        T&#234;n &#273;&#259;ng nh&#7853;p
+        <input id="username" autocomplete="username" placeholder="Nhap ten dang nhap">
+      </label>
+      <label>
+        M&#7853;t kh&#7849;u
+        <input id="password" autocomplete="current-password" type="password" placeholder="Nhap mat khau">
+      </label>
+      <button class="auth-submit" id="auth-submit" onclick="auth()">&#272;&#259;ng nh&#7853;p</button>
+    </section>
+  </div>
+  {% endif %}
 
   <script>
     let products = [];
     let cart = JSON.parse(localStorage.getItem('mmh_cart') || '[]');
-    let pendingOrderId = null;
+    let authMode = 'login';
 
     const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 
@@ -130,27 +145,74 @@
       window.setTimeout(() => box.classList.remove('show'), 4500);
     }
 
+    function showAuthAlert(message) {
+      const box = document.getElementById('auth-alert');
+      if (!box) return;
+      box.textContent = message;
+      box.classList.add('show');
+    }
+
+    function clearAuthAlert() {
+      const box = document.getElementById('auth-alert');
+      if (!box) return;
+      box.textContent = '';
+      box.classList.remove('show');
+    }
+
     async function api(path, options = {}) {
       const res = await fetch(path, {
         headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
         ...options
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Yêu cầu thất bại.');
+      if (!res.ok) throw new Error(data.message || 'Yeu cau that bai.');
       return data;
     }
 
-    async function auth(mode) {
+    function openAuth(mode) {
+      setAuthMode(mode);
+      clearAuthAlert();
+      document.getElementById('auth-modal').classList.add('open');
+      document.getElementById('auth-modal').setAttribute('aria-hidden', 'false');
+      window.setTimeout(() => document.getElementById('username').focus(), 50);
+    }
+
+    function closeAuth() {
+      document.getElementById('auth-modal').classList.remove('open');
+      document.getElementById('auth-modal').setAttribute('aria-hidden', 'true');
+    }
+
+    function openCart() {
+      document.getElementById('cart-drawer').classList.add('open');
+      document.getElementById('cart-drawer').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCart() {
+      document.getElementById('cart-drawer').classList.remove('open');
+      document.getElementById('cart-drawer').setAttribute('aria-hidden', 'true');
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      clearAuthAlert();
+      document.getElementById('auth-title').innerHTML = mode === 'login' ? '&#272;&#259;ng nh&#7853;p' : 'T&#7841;o t&#224;i kho&#7843;n';
+      document.getElementById('auth-submit').innerHTML = mode === 'login' ? '&#272;&#259;ng nh&#7853;p' : '&#272;&#259;ng k&#253;';
+      document.getElementById('login-tab').classList.toggle('active', mode === 'login');
+      document.getElementById('register-tab').classList.toggle('active', mode === 'register');
+    }
+
+    async function auth() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
       try {
-        const data = await api('/api/' + mode, {
+        const data = await api('/api/' + authMode, {
           method: 'POST',
           body: JSON.stringify({ username, password })
         });
         if (data.jwt) localStorage.setItem('mmh_jwt', data.jwt);
         window.location.reload();
       } catch (err) {
+        showAuthAlert(err.message);
         flash(err.message);
       }
     }
@@ -158,32 +220,61 @@
     async function loadProducts() {
       try {
         products = await api('/api/products');
-        const grid = document.getElementById('product-grid');
-        grid.innerHTML = products.map((p) => `
-          <article class="product">
-            <div class="product-media">${p.name.slice(0, 1)}</div>
-            <div class="product-body">
-              <h3>${p.name}</h3>
-              <p>${p.description}</p>
-              <div class="product-bottom">
-                <span class="price">${money.format(p.price)}</span>
-                <button onclick="addToCart(${p.id})">Thêm</button>
-              </div>
-            </div>
-          </article>
-        `).join('');
+        renderProducts();
+        renderCart();
       } catch (err) {
         flash(err.message);
       }
     }
 
+    function renderProducts() {
+      const keyword = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
+      const filteredProducts = products.filter((p) => {
+        const searchable = `${p.name} ${p.description} ${p.store_name || ''} ${p.seller_username || ''}`.toLowerCase();
+        return searchable.includes(keyword);
+      });
+
+        const grid = document.getElementById('product-grid');
+      if (!filteredProducts.length) {
+        grid.innerHTML = '<div class="empty product-empty">Không tìm thấy sản phẩm phù hợp.</div>';
+        return;
+      }
+
+        grid.innerHTML = filteredProducts.map((p) => `
+          <article class="product">
+            <div class="product-media">${p.image_url ? `<img src="${p.image_url}" alt="">` : p.name.slice(0, 1)}</div>
+            <div class="product-body">
+              <span class="store-name">${p.store_name || p.seller_username || 'Socrates Shop'}</span>
+              <h3>${p.name}</h3>
+              <p>${p.description}</p>
+              <div class="stock-line ${p.stock <= 0 ? 'out' : ''}">${p.stock > 0 ? `Con ${p.stock} san pham` : 'Het hang'}</div>
+              <div class="product-bottom">
+                <span class="price">${money.format(p.price)}</span>
+                <button onclick="addToCart(${p.id})" ${p.stock <= 0 ? 'disabled' : ''}>Th&#234;m</button>
+              </div>
+            </div>
+          </article>
+        `).join('');
+    }
+
     function addToCart(id) {
+      const product = products.find((p) => p.id === id);
+      if (!product || product.stock <= 0) {
+        flash('San pham da het hang.');
+        return;
+      }
       const existing = cart.find((item) => item.id === id);
-      if (existing) existing.quantity += 1;
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          flash(`Chi con ${product.stock} san pham trong kho.`);
+          return;
+        }
+        existing.quantity += 1;
+      }
       else cart.push({ id, quantity: 1 });
       saveCart();
       renderCart();
-      flash('Đã thêm sản phẩm vào giỏ hàng.');
+      flash('Da them san pham vao gio hang.');
     }
 
     function saveCart() {
@@ -201,20 +292,25 @@
       let total = 0;
       const count = cart.reduce((sum, item) => sum + item.quantity, 0);
       document.getElementById('cart-count').textContent = count;
+      document.getElementById('header-cart-count').textContent = count;
 
       if (!cart.length) {
-        list.innerHTML = '<div class="empty">Chưa có sản phẩm trong giỏ.</div>';
+        list.innerHTML = '<div class="empty">Ch&#432;a c&#243; s&#7843;n ph&#7849;m trong gi&#7887;.</div>';
       } else {
         list.innerHTML = cart.map((item) => {
-          const product = products.find((p) => p.id === item.id) || { name: 'Sản phẩm', price: 0 };
+          const product = products.find((p) => p.id === item.id) || { name: 'San pham', price: 0 };
+          if (product.stock !== undefined && item.quantity > product.stock) {
+            item.quantity = product.stock;
+            saveCart();
+          }
           total += product.price * item.quantity;
           return `
             <div class="line-item">
               <div>
                 <strong>${product.name}</strong>
-                <div class="muted">Số lượng ${item.quantity} · ${money.format(product.price * item.quantity)}</div>
+                <div class="muted">S&#7889; l&#432;&#7907;ng ${item.quantity} - Con ${product.stock ?? 0} - ${money.format(product.price * item.quantity)}</div>
               </div>
-              <button class="ghost danger-text" onclick="removeFromCart(${item.id})">Xóa</button>
+              <button class="ghost danger-text" onclick="removeFromCart(${item.id})">X&#243;a</button>
             </div>
           `;
         }).join('');
@@ -222,76 +318,32 @@
       document.getElementById('total').textContent = money.format(total);
     }
 
-    async function checkout() {
-      try {
-        const data = await api('/api/orders', {
-          method: 'POST',
-          body: JSON.stringify({
-            items: cart,
-            payment_method: document.getElementById('payment-method').value,
-            shipping_note: document.getElementById('shipping-note').value
-          })
-        });
-        pendingOrderId = data.order_id;
-        document.getElementById('webhook-order-id').value = data.order_id;
-        document.getElementById('pay-success').disabled = false;
-        document.getElementById('pay-fail').disabled = false;
-        flash(`Đã tạo đơn #${data.order_id}. Vui lòng xác nhận thanh toán.`);
-        await loadOrders();
-      } catch (err) {
-        flash(err.message);
-      }
-    }
-
-    async function pay(result) {
-      if (!pendingOrderId) return;
-      try {
-        const data = await api('/api/payments/mock', {
-          method: 'POST',
-          body: JSON.stringify({ order_id: pendingOrderId, result })
-        });
-        flash(data.message);
-        if (result === 'success') {
-          cart = [];
-          saveCart();
-          renderCart();
-        }
-        pendingOrderId = null;
-        document.getElementById('pay-success').disabled = true;
-        document.getElementById('pay-fail').disabled = true;
-        await loadOrders();
-      } catch (err) {
-        flash(err.message);
-      }
-    }
-
     async function loadOrders() {
       try {
         const orders = await api('/api/orders/latest');
         const list = document.getElementById('order-list');
         if (!orders.length) {
-          list.innerHTML = '<div class="empty">Chưa có đơn hàng.</div>';
+          list.innerHTML = '<div class="empty">Ch&#432;a c&#243; &#273;&#417;n h&#224;ng.</div>';
           return;
         }
         list.innerHTML = orders.map((order) => `
           <div class="order-item">
             <div>
-              <strong>Đơn #${order.id}</strong>
+              <strong>&#272;&#417;n #${order.id}</strong>
               <span class="pill ${order.status}">${order.status}</span>
             </div>
-            <div class="muted">${money.format(order.total_price)} · ${order.payment_method}</div>
-            <div class="muted">${order.gateway_transaction_id || 'Chưa có mã giao dịch'}</div>
-            ${order.shipping_note ? `<div class="muted">Ghi chú: ${order.shipping_note}</div>` : ''}
+            <div class="muted">${money.format(order.total_price)} - ${order.payment_method}</div>
+            <div class="muted">${order.gateway_transaction_id || 'Chua co ma giao dich'}</div>
+            ${order.shipping_note ? `<div class="muted">Ghi chu: ${order.shipping_note}</div>` : ''}
           </div>
         `).join('');
       } catch (_) {
-        document.getElementById('order-list').innerHTML = '<div class="empty">Đăng nhập để xem đơn hàng.</div>';
+        document.getElementById('order-list').innerHTML = '<div class="empty">&#272;&#259;ng nh&#7853;p &#273;&#7875; xem &#273;&#417;n h&#224;ng.</div>';
       }
     }
 
     async function boot() {
       await loadProducts();
-      renderCart();
       await loadOrders();
     }
 

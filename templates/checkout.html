@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thanh toan - Socrates Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark">S</span>
+        <span>Socrates Shop</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Dieu huong chinh">
+        <a href="/">S&#7843;n ph&#7849;m</a>
+        <a href="/#orders">&#272;&#417;n h&#224;ng</a>
+        <a href="/seller">K&#234;nh ng&#432;&#7901;i b&#225;n</a>
+      </nav>
+
+      <div class="auth">
+        {% if user %}
+          <div class="account-chip">
+            <span class="avatar">{{ user[:1]|upper }}</span>
+            <span>Xin ch&#224;o, <strong>{{ user }}</strong></span>
+          </div>
+          <a class="icon-button logout-button" href="/logout" title="Dang xuat" aria-label="Dang xuat">
+            <span aria-hidden="true">-&gt;</span>
+          </a>
+        {% else %}
+          <a class="button" href="/">&#272;&#259;ng nh&#7853;p</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="status" class="status"></div>
+
+    <section class="checkout-page">
+      <div class="checkout-main">
+        <p class="section-label">Thanh to&#225;n</p>
+        <h1>Thanh toán qua cổng điện tử</h1>
+        <p class="checkout-copy">Kiểm tra giỏ hàng, chọn phương thức thanh toán và xác nhận giao dịch qua cổng thanh toán điện tử.</p>
+
+        <div class="checkout-card">
+          <div class="cart-shop-logo checkout-logo">
+            <span class="cart-shop-mark">S</span>
+            <div>
+              <strong>Socrates Shop</strong>
+              <span>Thanh toán qua cổng điện tử demo</span>
+            </div>
+          </div>
+          <div class="section-head compact">
+            <h2>Th&#244;ng tin thanh to&#225;n</h2>
+            <span id="checkout-count" class="count">0</span>
+          </div>
+          <label>
+            Ph&#432;&#417;ng th&#7913;c
+            <select id="payment-method">
+              <option value="card">Thanh to&#225;n th&#7867;</option>
+              <option value="wallet">Thanh to&#225;n v&#237; &#273;i&#7879;n t&#7917;</option>
+            </select>
+          </label>
+          <label>
+            Ghi ch&#250; giao h&#224;ng
+            <textarea id="shipping-note" placeholder="Vi du: giao sau 18h, goi truoc khi den"></textarea>
+          </label>
+          <button id="create-order" onclick="checkout()">T&#7841;o &#273;&#417;n h&#224;ng</button>
+        </div>
+
+        <div class="checkout-card payment-step">
+          <div>
+            <p class="section-label">Cổng điện tử</p>
+            <h2 id="payment-title">Chưa tạo đơn hàng</h2>
+            <p class="muted" id="payment-copy">Sau khi tạo đơn, bạn có thể xác nhận thanh toán thành công hoặc hủy giao dịch.</p>
+          </div>
+          <div class="payment-actions">
+            <button class="secondary" id="pay-success" onclick="pay('success')" disabled>X&#225;c nh&#7853;n thanh to&#225;n</button>
+            <button class="danger" id="pay-fail" onclick="pay('fail')" disabled>H&#7911;y thanh to&#225;n</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="checkout-summary">
+        <div class="cart">
+          <div class="cart-shop-logo">
+            <span class="cart-shop-mark">S</span>
+            <div>
+              <strong>Socrates Shop</strong>
+              <span>T&#243;m t&#7855;t mua h&#224;ng</span>
+            </div>
+          </div>
+          <div class="section-head compact">
+            <h2>T&#243;m t&#7855;t gi&#7887; h&#224;ng</h2>
+            <a class="ghost-link" href="/#cart">Ch&#7881;nh s&#7917;a</a>
+          </div>
+          <div id="cart-list" class="cart-list"></div>
+          <div class="total"><span>T&#7893;ng</span><span id="total">0 d</span></div>
+        </div>
+
+        <div class="orders">
+          <div class="section-head compact">
+            <h2>&#272;&#417;n g&#7847;n &#273;&#226;y</h2>
+            <button class="ghost" onclick="loadOrders()">L&#224;m m&#7899;i</button>
+          </div>
+          <div id="order-list" class="order-list"></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    let products = [];
+    let cart = JSON.parse(localStorage.getItem('mmh_cart') || '[]');
+    let pendingOrderId = null;
+
+    const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+
+    function flash(message) {
+      const box = document.getElementById('status');
+      box.textContent = message;
+      box.classList.add('show');
+      window.setTimeout(() => box.classList.remove('show'), 4500);
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Yeu cau that bai.');
+      return data;
+    }
+
+    async function loadProducts() {
+      products = await api('/api/products');
+      renderCart();
+    }
+
+    function saveCart() {
+      localStorage.setItem('mmh_cart', JSON.stringify(cart));
+    }
+
+    function removeFromCart(id) {
+      cart = cart.filter((item) => item.id !== id);
+      saveCart();
+      renderCart();
+    }
+
+    function renderCart() {
+      const list = document.getElementById('cart-list');
+      let total = 0;
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('checkout-count').textContent = count;
+
+      if (!cart.length) {
+        list.innerHTML = '<div class="empty">Gi&#7887; h&#224;ng &#273;ang tr&#7889;ng.</div>';
+      } else {
+        list.innerHTML = cart.map((item) => {
+          const product = products.find((p) => p.id === item.id) || { name: 'San pham', price: 0 };
+          if (product.stock !== undefined && item.quantity > product.stock) {
+            item.quantity = product.stock;
+            saveCart();
+          }
+          total += product.price * item.quantity;
+          return `
+            <div class="line-item">
+              <div>
+                <strong>${product.name}</strong>
+                <div class="muted">S&#7889; l&#432;&#7907;ng ${item.quantity} - Con ${product.stock ?? 0} - ${money.format(product.price * item.quantity)}</div>
+              </div>
+              <button class="ghost danger-text" onclick="removeFromCart(${item.id})">X&#243;a</button>
+            </div>
+          `;
+        }).join('');
+      }
+      document.getElementById('total').textContent = money.format(total);
+    }
+
+    async function checkout() {
+      try {
+        if (cart.some((item) => item.quantity <= 0)) {
+          throw new Error('Gio hang co san pham da het hang. Vui long xoa khoi gio.');
+        }
+        const data = await api('/api/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: cart,
+            payment_method: document.getElementById('payment-method').value,
+            shipping_note: document.getElementById('shipping-note').value
+          })
+        });
+        pendingOrderId = data.order_id;
+        document.getElementById('pay-success').disabled = false;
+        document.getElementById('pay-fail').disabled = false;
+        document.getElementById('payment-title').innerHTML = `&#272;&#417;n #${data.order_id} &#273;ang ch&#7901; thanh to&#225;n`;
+        document.getElementById('payment-copy').textContent = `So tien can thanh toan: ${money.format(data.amount)}.`;
+        flash(`Da tao don #${data.order_id}. Vui long xac nhan thanh toan.`);
+        await loadOrders();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    async function pay(result) {
+      if (!pendingOrderId) return;
+      try {
+        const data = await api('/api/payments/mock', {
+          method: 'POST',
+          body: JSON.stringify({ order_id: pendingOrderId, result })
+        });
+        flash(data.message);
+        if (result === 'success') {
+          cart = [];
+          saveCart();
+          renderCart();
+        }
+        pendingOrderId = null;
+        document.getElementById('pay-success').disabled = true;
+        document.getElementById('pay-fail').disabled = true;
+        document.getElementById('payment-title').innerHTML = result === 'success' ? 'Thanh to&#225;n th&#224;nh c&#244;ng' : 'Thanh to&#225;n &#273;&#227; h&#7911;y';
+        document.getElementById('payment-copy').innerHTML = 'Tr&#7841;ng th&#225;i &#273;&#417;n h&#224;ng &#273;&#227; &#273;&#432;&#7907;c c&#7853;p nh&#7853;t.';
+        await loadOrders();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    async function loadOrders() {
+      try {
+        const orders = await api('/api/orders/latest');
+        const list = document.getElementById('order-list');
+        if (!orders.length) {
+          list.innerHTML = '<div class="empty">Ch&#432;a c&#243; &#273;&#417;n h&#224;ng.</div>';
+          return;
+        }
+        list.innerHTML = orders.map((order) => `
+          <div class="order-item">
+            <div>
+              <strong>&#272;&#417;n #${order.id}</strong>
+              <span class="pill ${order.status}">${order.status}</span>
+            </div>
+            <div class="muted">${money.format(order.total_price)} - ${order.payment_method}</div>
+            <div class="muted">${order.gateway_transaction_id || 'Chua co ma giao dich'}</div>
+            ${order.shipping_note ? `<div class="muted">Ghi chu: ${order.shipping_note}</div>` : ''}
+          </div>
+        `).join('');
+      } catch (_) {
+        document.getElementById('order-list').innerHTML = '<div class="empty">&#272;&#259;ng nh&#7853;p &#273;&#7875; xem &#273;&#417;n h&#224;ng.</div>';
+      }
+    }
+
+    async function boot() {
+      try {
+        await loadProducts();
+        await loadOrders();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

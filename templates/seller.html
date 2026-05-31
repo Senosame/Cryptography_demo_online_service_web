@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kenh nguoi ban - Socrates Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark">S</span>
+        <span>Socrates Shop</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Dieu huong chinh">
+        <a href="/">San pham</a>
+        <a href="/checkout">Thanh toan</a>
+        <a href="/seller">Kenh nguoi ban</a>
+      </nav>
+
+      <div class="auth">
+        {% if user %}
+          <div class="account-chip">
+            <span class="avatar">{{ user[:1]|upper }}</span>
+            <span>Xin chao, <strong>{{ user }}</strong></span>
+          </div>
+          <a class="icon-button logout-button" href="/logout" title="Dang xuat" aria-label="Dang xuat">
+            <span aria-hidden="true">-&gt;</span>
+          </a>
+        {% else %}
+          <a class="button" href="/">Dang nhap</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="status" class="status"></div>
+
+    <section class="seller-hero">
+      <div>
+        <p class="section-label">Kenh nguoi ban</p>
+        <h1>Dang san pham cua shop len Socrates Shop</h1>
+        <p class="seller-copy">Moi tai khoan co the tao gian hang rieng, dang san pham va quan ly danh sach hang dang ban tren nen tang.</p>
+      </div>
+      <div class="seller-hero-card">
+        <strong id="seller-product-count">0</strong>
+        <span>San pham dang ban</span>
+      </div>
+    </section>
+
+    {% if user %}
+    <section class="seller-layout">
+      <form class="seller-form" onsubmit="createProduct(event)">
+        <div class="section-head compact">
+          <div>
+            <p class="section-label">Dang san pham</p>
+            <h2>Thong tin san pham</h2>
+          </div>
+        </div>
+
+        <label>
+          Ten shop
+          <input id="store-name" maxlength="80" placeholder="Vi du: An Tech Store" required>
+        </label>
+        <label>
+          Ten san pham
+          <input id="product-name" maxlength="120" placeholder="Vi du: Ban phim co F75" required>
+        </label>
+        <label>
+          Mo ta
+          <textarea id="product-description" maxlength="600" placeholder="Mo ta tinh nang, tinh trang, bao hanh..." required></textarea>
+        </label>
+        <div class="form-grid">
+          <label>
+            Gia ban
+            <input id="product-price" type="number" min="1000" step="1000" placeholder="890000" required>
+          </label>
+          <label>
+            So luong
+            <input id="product-stock" type="number" min="0" step="1" placeholder="20" required>
+          </label>
+          <label>
+            Anh san pham
+            <input id="product-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="previewImage()">
+          </label>
+        </div>
+        <div id="image-preview" class="image-preview"></div>
+        <button type="submit">Dang san pham</button>
+      </form>
+
+      <aside class="seller-products">
+        <div class="section-head compact">
+          <div>
+            <p class="section-label">Gian hang cua toi</p>
+            <h2>San pham da dang</h2>
+          </div>
+          <button class="ghost" onclick="loadSellerProducts()">Lam moi</button>
+        </div>
+        <div id="seller-product-list" class="seller-product-list"></div>
+      </aside>
+    </section>
+    {% else %}
+    <section class="seller-login-card">
+      <h2>Can dang nhap de mo kenh nguoi ban</h2>
+      <p class="muted">Dang nhap hoac dang ky tai trang chu, sau do quay lai day de tao shop va dang san pham.</p>
+      <a class="button" href="/">Ve trang chu</a>
+    </section>
+    {% endif %}
+  </main>
+
+  <script>
+    const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+
+    function flash(message) {
+      const box = document.getElementById('status');
+      box.textContent = message;
+      box.classList.add('show');
+      window.setTimeout(() => box.classList.remove('show'), 4500);
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Yeu cau that bai.');
+      return data;
+    }
+
+    async function formApi(path, formData) {
+      const res = await fetch(path, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Yeu cau that bai.');
+      return data;
+    }
+
+    function previewImage() {
+      const input = document.getElementById('product-image');
+      const preview = document.getElementById('image-preview');
+      const file = input.files[0];
+
+      if (!file) {
+        preview.innerHTML = '';
+        preview.classList.remove('show');
+        return;
+      }
+
+      preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`;
+      preview.classList.add('show');
+    }
+
+    async function loadSellerProducts() {
+      try {
+        const data = await api('/api/seller/products');
+        const products = data.products || [];
+        document.getElementById('seller-product-count').textContent = products.length;
+        const list = document.getElementById('seller-product-list');
+
+        if (!products.length) {
+          list.innerHTML = '<div class="empty">Shop cua ban chua co san pham nao.</div>';
+          return;
+        }
+
+        document.getElementById('store-name').value = products[0].store_name || '';
+        list.innerHTML = products.map((product) => `
+          <article class="seller-product-item">
+            <div class="seller-thumb">${product.image_url ? `<img src="${product.image_url}" alt="">` : product.name.slice(0, 1)}</div>
+            <div>
+              <strong>${product.name}</strong>
+              <p>${product.description}</p>
+              <span>${money.format(product.price)} - Con ${product.stock}</span>
+            </div>
+          </article>
+        `).join('');
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    async function createProduct(event) {
+      event.preventDefault();
+      try {
+        const formData = new FormData();
+        formData.append('store_name', document.getElementById('store-name').value);
+        formData.append('name', document.getElementById('product-name').value);
+        formData.append('description', document.getElementById('product-description').value);
+        formData.append('price', document.getElementById('product-price').value);
+        formData.append('stock', document.getElementById('product-stock').value);
+        if (document.getElementById('product-image').files[0]) {
+          formData.append('image', document.getElementById('product-image').files[0]);
+        }
+
+        await formApi('/api/seller/products', formData);
+        document.getElementById('product-name').value = '';
+        document.getElementById('product-description').value = '';
+        document.getElementById('product-price').value = '';
+        document.getElementById('product-stock').value = '';
+        document.getElementById('product-image').value = '';
+        document.getElementById('image-preview').innerHTML = '';
+        document.getElementById('image-preview').classList.remove('show');
+        flash('Da dang san pham len san.');
+        await loadSellerProducts();
+      } catch (err) {
+        flash(err.message);
+      }
+    }
+
+    {% if user %}
+    loadSellerProducts();
+    {% endif %}
+  </script>
+</body>
+</html>

@@ -2,11 +2,13 @@ import json
 import os
 import sqlite3
 import time
+import uuid
 from functools import wraps
 
 import jwt
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
@@ -15,6 +17,8 @@ app.secret_key = os.environ.get("APP_SECRET", "group17-demo-secret")
 DB_PATH = os.environ.get("SQLITE_DB_PATH", "local_shop.db")
 JWT_SECRET = os.environ.get("JWT_SECRET", "jwt-demo-secret")
 JWT_ALGORITHM = "HS256"
+UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads")
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 
 def get_db():
@@ -24,6 +28,8 @@ def get_db():
 
 
 def init_db():
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
     conn = get_db()
     cursor = conn.cursor()
     cursor.executescript(
@@ -38,10 +44,15 @@ def init_db():
 
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            seller_id INTEGER,
+            store_name TEXT,
             name TEXT NOT NULL,
             description TEXT NOT NULL,
             price REAL NOT NULL,
-            image_url TEXT
+            stock INTEGER NOT NULL DEFAULT 0,
+            image_url TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (seller_id) REFERENCES users(id)
         );
 
         CREATE TABLE IF NOT EXISTS orders (
@@ -72,18 +83,29 @@ def init_db():
     if "shipping_note" not in order_columns:
         cursor.execute("ALTER TABLE orders ADD COLUMN shipping_note TEXT")
 
+    cursor.execute("PRAGMA table_info(products)")
+    product_columns = {row["name"] for row in cursor.fetchall()}
+    if "seller_id" not in product_columns:
+        cursor.execute("ALTER TABLE products ADD COLUMN seller_id INTEGER")
+    if "store_name" not in product_columns:
+        cursor.execute("ALTER TABLE products ADD COLUMN store_name TEXT")
+    if "stock" not in product_columns:
+        cursor.execute("ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 100")
+    if "created_at" not in product_columns:
+        cursor.execute("ALTER TABLE products ADD COLUMN created_at TEXT")
+
     cursor.execute("SELECT COUNT(*) AS count FROM products")
     if cursor.fetchone()["count"] == 0:
         cursor.executemany(
             """
-            INSERT INTO products (name, description, price, image_url)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO products (store_name, name, description, price, stock, image_url)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             [
-                ("Ban phim co F75", "Ban phim co nho gon, led RGB, phu hop hoc tap va lam viec.", 890000, None),
-                ("Chuot gaming X6", "Chuot khong day nhe, cam bien on dinh, pin su dung lau.", 420000, None),
-                ("Tai nghe hoc online", "Tai nghe co mic loc tieng on, dung tot cho lop hoc va hop nhom.", 350000, None),
-                ("USB Security Key", "Khoa bao mat dung cho dang nhap va demo xac thuc.", 250000, None),
+                ("Socrates Mall", "Bàn phím cơ F75", "Bàn phím cơ nhỏ gọn, LED RGB, phù hợp học tập và làm việc.", 890000, 20, None),
+                ("Socrates Mall", "Chuột gaming X6", "Chuột không dây nhẹ, cảm biến ổn định, pin sử dụng lâu.", 420000, 35, None),
+                ("Socrates Mall", "Tai nghe học online", "Tai nghe có mic lọc tiếng ồn, dùng tốt cho lớp học và họp nhóm.", 350000, 40, None),
+                ("Socrates Mall", "USB Security Key", "Khóa bảo mật dùng cho đăng nhập và demo xác thực.", 250000, 15, None),
             ],
         )
     conn.commit()
@@ -98,6 +120,49 @@ def publish_payment_event(event):
 
 def row_to_dict(row):
     return dict(row) if row else None
+
+
+def allowed_image(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_product_image(file_storage):
+    if not file_storage or not file_storage.filename:
+        return None
+
+    filename = secure_filename(file_storage.filename)
+    if not filename or not allowed_image(filename):
+        raise ValueError("Anh san pham chi ho tro PNG, JPG, JPEG, GIF hoac WEBP.")
+
+    ext = filename.rsplit(".", 1)[1].lower()
+    saved_name = f"{uuid.uuid4().hex}.{ext}"
+    file_storage.save(os.path.join(UPLOAD_FOLDER, saved_name))
+    return url_for("static", filename=f"uploads/{saved_name}")
+
+
+def deduct_order_stock(conn, order):
+    items = json.loads(order["items_json"] or "[]")
+    if not items:
+        return None
+
+    for item in items:
+        product_id = int(item["product_id"])
+        quantity = int(item["quantity"])
+        product = conn.execute(
+            "SELECT name, stock FROM products WHERE id = ?",
+            (product_id,),
+        ).fetchone()
+        if not product:
+            return "Mot san pham trong don hang khong con ton tai."
+        if int(product["stock"]) < quantity:
+            return f"San pham {product['name']} chi con {product['stock']} trong kho."
+
+    for item in items:
+        conn.execute(
+            "UPDATE products SET stock = stock - ? WHERE id = ?",
+            (int(item["quantity"]), int(item["product_id"])),
+        )
+    return None
 
 
 def create_jwt(user):
@@ -128,9 +193,25 @@ def require_jwt(fn):
     return wrapper
 
 
+def require_login():
+    if "user_id" not in session:
+        return jsonify({"status": "error", "message": "Vui long dang nhap truoc."}), 401
+    return None
+
+
 @app.route("/")
 def index():
     return render_template("index.html", user=session.get("username"))
+
+
+@app.route("/seller")
+def seller_page():
+    return render_template("seller.html", user=session.get("username"))
+
+
+@app.route("/checkout")
+def checkout_page():
+    return render_template("checkout.html", user=session.get("username"))
 
 
 @app.get("/api/health")
@@ -149,10 +230,105 @@ def health():
 def products():
     conn = get_db()
     rows = conn.execute(
-        "SELECT id, name, description, price, image_url FROM products ORDER BY id"
+        """
+        SELECT p.id, p.name, p.description, p.price, p.stock, p.image_url, p.store_name,
+               u.username AS seller_username
+        FROM products p
+        LEFT JOIN users u ON u.id = p.seller_id
+        ORDER BY p.id DESC
+        """
     ).fetchall()
     conn.close()
     return jsonify([row_to_dict(row) for row in rows])
+
+
+@app.get("/api/seller/products")
+def seller_products():
+    auth_error = require_login()
+    if auth_error:
+        return auth_error
+
+    conn = get_db()
+    user = conn.execute(
+        "SELECT id, username, role FROM users WHERE id = ?",
+        (session["user_id"],),
+    ).fetchone()
+    rows = conn.execute(
+        """
+        SELECT id, name, description, price, stock, image_url, store_name, created_at
+        FROM products
+        WHERE seller_id = ?
+        ORDER BY id DESC
+        """,
+        (session["user_id"],),
+    ).fetchall()
+    conn.close()
+    return jsonify(
+        {
+            "status": "success",
+            "seller": row_to_dict(user),
+            "products": [row_to_dict(row) for row in rows],
+        }
+    )
+
+
+@app.post("/api/seller/products")
+def create_seller_product():
+    auth_error = require_login()
+    if auth_error:
+        return auth_error
+
+    data = request.form if request.form else request.get_json(force=True)
+    store_name = (data.get("store_name") or "").strip()
+    name = (data.get("name") or "").strip()
+    description = (data.get("description") or "").strip()
+    image_url = (data.get("image_url") or "").strip() or None
+
+    try:
+        uploaded_image_url = save_product_image(request.files.get("image"))
+    except ValueError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    if uploaded_image_url:
+        image_url = uploaded_image_url
+
+    try:
+        price = float(data.get("price", 0))
+    except (TypeError, ValueError):
+        price = 0
+
+    try:
+        stock = int(data.get("stock", 0))
+    except (TypeError, ValueError):
+        stock = 0
+
+    if len(store_name) < 3:
+        return jsonify({"status": "error", "message": "Ten shop phai co it nhat 3 ky tu."}), 400
+    if len(name) < 3 or len(description) < 8 or price <= 0 or stock < 0:
+        return jsonify({"status": "error", "message": "Thong tin san pham chua hop le."}), 400
+
+    conn = get_db()
+    cursor = conn.execute(
+        """
+        INSERT INTO products (seller_id, store_name, name, description, price, stock, image_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (session["user_id"], store_name, name, description, price, stock, image_url),
+    )
+    conn.execute(
+        "UPDATE users SET role = 'seller' WHERE id = ? AND role != 'admin'",
+        (session["user_id"],),
+    )
+    conn.commit()
+    product_id = cursor.lastrowid
+    conn.close()
+
+    return jsonify(
+        {
+            "status": "success",
+            "id": product_id,
+            "message": "San pham da duoc dang len san.",
+        }
+    )
 
 
 @app.post("/api/register")
@@ -219,16 +395,15 @@ def insecure_admin():
         return jsonify({"status": "error", "message": "Thieu Bearer token."}), 401
 
     try:
-        # Vulnerable on purpose: signature is not verified for the lab.
-        claims = jwt.decode(token, options={"verify_signature": False})
+        claims = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.InvalidTokenError as exc:
-        return jsonify({"status": "error", "message": f"JWT decode loi: {exc}"}), 401
+        return jsonify({"status": "error", "message": f"JWT khong hop le: {exc}"}), 401
 
     if claims.get("role") != "admin":
         return jsonify(
             {
                 "status": "error",
-                "message": "Can role=admin. Hay thu sua payload JWT va gui lai request bang Burp/ZAP.",
+                "message": "Can role=admin voi JWT hop le da duoc server verify chu ky.",
                 "claims_seen": claims,
             }
         ), 403
@@ -236,7 +411,7 @@ def insecure_admin():
     return jsonify(
         {
             "status": "success",
-            "message": "Ban da vao endpoint admin vi server decode JWT ma khong verify chu ky.",
+            "message": "JWT hop le va co role=admin.",
             "claims_seen": claims,
         }
     )
@@ -262,7 +437,7 @@ def create_order():
     product_ids = [int(item["id"]) for item in items]
     placeholders = ",".join(["?"] * len(product_ids))
     rows = conn.execute(
-        f"SELECT id, name, price FROM products WHERE id IN ({placeholders})",
+        f"SELECT id, name, price, stock FROM products WHERE id IN ({placeholders})",
         tuple(product_ids),
     ).fetchall()
     products_by_id = {row["id"]: row for row in rows}
@@ -274,6 +449,14 @@ def create_order():
         quantity = max(1, int(item.get("quantity", 1)))
         if not product:
             continue
+        if quantity > int(product["stock"]):
+            conn.close()
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": f"San pham {product['name']} chi con {product['stock']} trong kho.",
+                }
+            ), 400
         total += float(product["price"]) * quantity
         normalized_items.append(
             {
@@ -349,7 +532,24 @@ def payment_webhook(payload=None):
         return jsonify({"status": "error", "message": "Trang thai khong hop le."}), 400
 
     conn = get_db()
-    cursor = conn.execute(
+    order = conn.execute(
+        "SELECT id, status, items_json FROM orders WHERE id = ?",
+        (order_id,),
+    ).fetchone()
+    if not order:
+        conn.close()
+        return jsonify({"status": "error", "message": "Khong tim thay don hang."}), 404
+
+    stock_error = None
+    if status == "PAID" and order["status"] != "PAID":
+        stock_error = deduct_order_stock(conn, order)
+
+    if stock_error:
+        conn.rollback()
+        conn.close()
+        return jsonify({"status": "error", "message": stock_error}), 400
+
+    conn.execute(
         """
         UPDATE orders
         SET status = ?, gateway_provider = ?, gateway_transaction_id = ?
@@ -363,7 +563,6 @@ def payment_webhook(payload=None):
         ),
     )
     conn.commit()
-    updated = cursor.rowcount
     conn.close()
 
     event = {
@@ -374,9 +573,6 @@ def payment_webhook(payload=None):
         "transaction_id": data.get("transaction_id"),
     }
     kafka_sent = publish_payment_event(event)
-
-    if not updated:
-        return jsonify({"status": "error", "message": "Khong tim thay don hang."}), 404
 
     return jsonify(
         {
