@@ -61,7 +61,79 @@ Lý do lỗi:
 - Frontend render lại bằng `innerHTML`.
 - JWT nằm trong `localStorage`, JavaScript đọc được.
 
-## 3. Giả mạo Webhook/Callback
+## 3. Token Replay bằng JWT bị đánh cắp
+
+Mục tiêu demo:
+
+- Chứng minh JWT lấy được từ `localStorage` có thể bị dùng lại ở một client khác.
+- Chỉ thực hiện trong môi trường lab/local với tài khoản kiểm thử.
+
+Endpoint dùng cho demo JWT trong code hiện tại:
+
+```text
+GET /api/jwt/profile
+GET /api/jwt/insecure-admin
+```
+
+Lưu ý: trong code hiện tại, `/api/orders` và `/api/payments/mock` đang dựa vào Flask session cookie, không dựa vào Bearer JWT. Vì vậy replay bằng header `Authorization: Bearer <token>` nên demo trực tiếp với `/api/jwt/profile`. Nếu hệ thống được đổi sang xác thực Bearer JWT cho order/payment, cùng kỹ thuật này có thể áp dụng cho các API đó.
+
+Cách trích xuất token trong lab:
+
+1. Đăng nhập bằng tài khoản nạn nhân trên web local.
+2. Mở DevTools Console trong cùng origin `http://127.0.0.1:5000`.
+3. Chạy lệnh:
+
+```js
+localStorage.getItem('mmh_jwt')
+```
+
+4. Copy chuỗi JWT trả về.
+
+Cách replay bằng Postman/Burp/ZAP:
+
+1. Tạo request mới:
+
+```http
+GET http://127.0.0.1:5000/api/jwt/profile
+Authorization: Bearer <JWT_VUA_COPY>
+```
+
+2. Gửi request từ một client khác, ví dụ trình duyệt ẩn danh, Postman, Burp Repeater hoặc ZAP Manual Request.
+3. Quan sát response trả về `claims` của nạn nhân.
+4. Kết luận demo: server chấp nhận token bị copy vì token là bearer credential; ai cầm token thì được xem như chủ phiên.
+
+Cách replay bằng PowerShell:
+
+```powershell
+$token = "PASTE_JWT_VAO_DAY"
+Invoke-RestMethod `
+  -Uri "http://127.0.0.1:5000/api/jwt/profile" `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Kết quả mong đợi:
+
+- Request từ client khác vẫn thành công.
+- Response chứa thông tin claim như `sub`, `username`, `role`, `iat`.
+- Nếu API nghiệp vụ dùng cùng Bearer JWT và không có kiểm soát bổ sung, kẻ có token có thể gọi API dưới danh nghĩa nạn nhân cho đến khi token hết hạn hoặc bị thu hồi.
+
+Lý do lỗi:
+
+- JWT được lưu trong `localStorage`, nên JavaScript chạy trong origin có thể đọc được.
+- Payload XSS ở phần trước có thể lấy token ra khỏi trình duyệt nạn nhân.
+- Token không có ràng buộc thiết bị, không có cơ chế thu hồi theo phiên và không có kiểm tra replay.
+- JWT demo không có claim `exp`, nên token có thể sống quá lâu trong môi trường lab.
+
+Hướng vá:
+
+- Không lưu access token trong `localStorage`; ưu tiên cookie `HttpOnly`, `Secure`, `SameSite`.
+- Dùng access token thời hạn ngắn, có `exp`, `iss`, `aud`, `jti` và kiểm tra đầy đủ ở server.
+- Cân nhắc opaque token cho phiên đăng nhập để server có thể thu hồi ngay khi phát hiện bất thường.
+- Áp dụng refresh token rotation; nếu refresh token cũ bị dùng lại, thu hồi cả token family.
+- Ràng buộc refresh token với thiết bị hoặc client bằng thumbprint phù hợp với mô hình OAuth2/OIDC + PKCE.
+- Ghi log và cảnh báo khi cùng một token xuất hiện từ IP, user-agent hoặc thiết bị bất thường.
+
+## 4. Giả mạo Webhook/Callback
 
 Endpoint vulnerable:
 
@@ -94,7 +166,7 @@ Lý do lỗi:
 - Không kiểm tra timestamp.
 - Không chống replay.
 
-## 4. SQL Injection trong Payment Search
+## 5. SQL Injection trong Payment Search
 
 Endpoint vulnerable:
 
@@ -129,6 +201,8 @@ Lý do lỗi:
 
 - Bật HTTPS/TLS.
 - Không lưu JWT trong `localStorage`; ưu tiên cookie `HttpOnly`, `Secure`, `SameSite`.
+- Dùng access token ngắn hạn hoặc opaque token; bật refresh token rotation và cơ chế thu hồi token.
+- Ràng buộc refresh token với thiết bị/client khi phù hợp, ví dụ thumbprint trong luồng OAuth2/OIDC + PKCE.
 - Escape/sanitize dữ liệu người dùng; không render input bằng `innerHTML`.
 - Ký webhook bằng HMAC-SHA256 và kiểm tra timestamp.
 - Dùng parameterized query cho mọi SQL statement.
