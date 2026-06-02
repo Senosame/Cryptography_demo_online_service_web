@@ -21,10 +21,10 @@ UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads")
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 DEFAULT_PRODUCT_IMAGES = {
-    "Bàn phím cơ F75": "/static/product-images/keyboard-f75.svg",
-    "Chuột gaming X6": "/static/product-images/mouse-x6.svg",
-    "Tai nghe có dây": "/static/product-images/headset-online.svg",
-    "USB Security Key": "/static/product-images/security-key.svg",
+    "Bàn phím cơ F75": "/static/product-images/f75.jpg",
+    "Chuột gaming X6": "/static/product-images/sharkx6.jpg",
+    "Tai nghe có dây": "/static/product-images/Headphone.jpg",
+    "USB Security Key": "/static/product-images/Usb.jpg",
 }
 
 
@@ -123,7 +123,7 @@ def init_db():
             """
             UPDATE products
             SET image_url = ?
-            WHERE name = ? AND (image_url IS NULL OR image_url = '')
+            WHERE name = ? AND (image_url IS NULL OR image_url = '' OR image_url LIKE '/static/product-images/%')
             """,
             (image_url, product_name),
         )
