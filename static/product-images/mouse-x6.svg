@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Gaming mouse X6">
+  <rect width="640" height="420" fill="#f1f5f9"/>
+  <path d="M320 70c78 0 138 72 138 164 0 82-48 126-138 126s-138-44-138-126c0-92 60-164 138-164z" fill="#111827"/>
+  <path d="M320 82v118" stroke="#38bdf8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M220 230c26 22 59 34 100 34s74-12 100-34" fill="none" stroke="#38bdf8" stroke-width="12" stroke-linecap="round"/>
+  <rect x="290" y="92" width="60" height="82" rx="26" fill="#0f766e"/>
+  <rect x="306" y="106" width="28" height="48" rx="14" fill="#ecfeff"/>
+  <path d="M240 116c-34 24-54 66-58 112" stroke="#64748b" stroke-width="10" stroke-linecap="round"/>
+  <path d="M400 116c34 24 54 66 58 112" stroke="#64748b" stroke-width="10" stroke-linecap="round"/>
+  <text x="320" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f172a">Gaming Mouse X6</text>
+</svg>
