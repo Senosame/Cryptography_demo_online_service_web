@@ -15,7 +15,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("APP_SECRET", "group17-demo-secret")
 
 DB_PATH = os.environ.get("SQLITE_DB_PATH", "local_shop.db")
-JWT_SECRET = os.environ.get("JWT_SECRET", "jwt-demo-secret")
+JWT_SECRET = os.environ.get("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET is required")
 JWT_ALGORITHM = "HS256"
 UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads")
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -193,12 +195,12 @@ def deduct_order_stock(conn, order):
 
 
 def create_jwt(user):
-    # Intentionally weak for the lab: static secret, no exp, role is trusted by the client demo.
     payload = {
         "sub": str(user["id"]),
         "username": user["username"],
         "role": user["role"],
         "iat": int(time.time()),
+        "exp": int(time.time()) + 3600,
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -427,21 +429,37 @@ def insecure_admin():
         return jsonify({"status": "error", "message": f"JWT khong hop le: {exc}"}), 401
 
     if claims.get("role") != "admin":
-        return jsonify(
-            {
-                "status": "error",
-                "message": "Can role=admin voi JWT hop le da duoc server verify chu ky.",
-                "claims_seen": claims,
-            }
-        ), 403
+        user_id = claims.get("sub")
+        if not user_id:
+            return jsonify({"status": "error", "message": "JWT thieu sub."}), 401
+
+        conn = get_db()
+        user = conn.execute(
+            "SELECT id, username, role FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        conn.close()
+
+    if not user or user["role"] != "admin":
+      return jsonify(
+          {
+              "status": "error",
+              "message": "Khong co quyen admin.",
+              "claims_seen": claims,
+          }
+      ), 403
 
     return jsonify(
-        {
-            "status": "success",
-            "message": "JWT hop le va co role=admin.",
-            "claims_seen": claims,
-        }
-    )
+      {
+          "status": "success",
+          "message": "JWT hop le va user trong DB co role=admin.",
+          "user": {
+              "id": user["id"],
+              "username": user["username"],
+              "role": user["role"],
+          },
+      }
+  )
 
 
 @app.get("/logout")
@@ -616,20 +634,18 @@ def payment_webhook(payload=None):
 @app.get("/api/payments/search-vulnerable")
 def vulnerable_payment_search():
     transaction_id = request.args.get("transaction_id", "")
-    # Vulnerable on purpose for the lab: raw string interpolation enables SQL injection.
     sql = (
         "SELECT id, total_price, status, payment_method, card_number, gateway_provider, "
         "gateway_transaction_id, order_date FROM orders "
-        f"WHERE gateway_transaction_id = '{transaction_id}'"
+        "WHERE gateway_transaction_id = ?"
     )
 
     conn = get_db()
     try:
-        rows = conn.execute(sql).fetchall()
+        rows = conn.execute(sql, (transaction_id,)).fetchall()
         return jsonify(
             {
                 "status": "success",
-                "vulnerable_sql": sql,
                 "rows": [row_to_dict(row) for row in rows],
             }
         )
