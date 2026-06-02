@@ -65,6 +65,10 @@
             </select>
           </label>
           <label>
+            S&#7889; th&#7867;
+            <input id="card-number" inputmode="numeric" autocomplete="off" placeholder="4111111111111111">
+          </label>
+          <label>
             Ghi ch&#250; giao h&#224;ng
             <textarea id="shipping-note" placeholder="Vi du: giao sau 18h, goi truoc khi den"></textarea>
           </label>
@@ -191,6 +195,7 @@
           body: JSON.stringify({
             items: cart,
             payment_method: document.getElementById('payment-method').value,
+            card_number: document.getElementById('card-number').value,
             shipping_note: document.getElementById('shipping-note').value
           })
         });
@@ -245,6 +250,7 @@
               <span class="pill ${order.status}">${order.status}</span>
             </div>
             <div class="muted">${money.format(order.total_price)} - ${order.payment_method}</div>
+            ${order.card_number ? `<div class="muted">So the: ${order.card_number}</div>` : ''}
             <div class="muted">${order.gateway_transaction_id || 'Chua co ma giao dich'}</div>
             ${order.shipping_note ? `<div class="muted">Ghi chu: ${order.shipping_note}</div>` : ''}
           </div>

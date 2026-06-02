@@ -746,6 +746,7 @@ h2 {
 }
 
 .auth-card input,
+.checkout-card input,
 .checkout-card select,
 .checkout-card textarea {
   width: 100%;

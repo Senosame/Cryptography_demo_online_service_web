@@ -333,6 +333,7 @@
               <span class="pill ${order.status}">${order.status}</span>
             </div>
             <div class="muted">${money.format(order.total_price)} - ${order.payment_method}</div>
+            ${order.card_number ? `<div class="muted">So the: ${order.card_number}</div>` : ''}
             <div class="muted">${order.gateway_transaction_id || 'Chua co ma giao dich'}</div>
             ${order.shipping_note ? `<div class="muted">Ghi chu: ${order.shipping_note}</div>` : ''}
           </div>

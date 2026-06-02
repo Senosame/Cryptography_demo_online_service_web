@@ -63,6 +63,7 @@ def init_db():
             shipping_note TEXT,
             status TEXT NOT NULL DEFAULT 'PENDING',
             payment_method TEXT NOT NULL DEFAULT 'card',
+            card_number TEXT,
             gateway_provider TEXT,
             gateway_transaction_id TEXT,
             order_date TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -82,6 +83,8 @@ def init_db():
     order_columns = {row["name"] for row in cursor.fetchall()}
     if "shipping_note" not in order_columns:
         cursor.execute("ALTER TABLE orders ADD COLUMN shipping_note TEXT")
+    if "card_number" not in order_columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN card_number TEXT")
 
     cursor.execute("PRAGMA table_info(products)")
     product_columns = {row["name"] for row in cursor.fetchall()}
@@ -473,8 +476,8 @@ def create_order():
 
     cursor = conn.execute(
         """
-        INSERT INTO orders (user_id, total_price, items_json, shipping_note, status, payment_method)
-        VALUES (?, ?, ?, ?, 'PENDING', ?)
+        INSERT INTO orders (user_id, total_price, items_json, shipping_note, status, payment_method, card_number)
+        VALUES (?, ?, ?, ?, 'PENDING', ?, ?)
         """,
         (
             session["user_id"],
@@ -482,6 +485,7 @@ def create_order():
             json.dumps(normalized_items, ensure_ascii=False),
             data.get("shipping_note", ""),
             data.get("payment_method", "card"),
+            data.get("card_number", ""),
         ),
     )
     order_id = cursor.lastrowid
@@ -494,6 +498,7 @@ def create_order():
             "order_id": order_id,
             "amount": total,
             "payment_method": data.get("payment_method", "card"),
+            "card_number": data.get("card_number", ""),
         }
     )
 
@@ -589,7 +594,7 @@ def vulnerable_payment_search():
     transaction_id = request.args.get("transaction_id", "")
     # Vulnerable on purpose for the lab: raw string interpolation enables SQL injection.
     sql = (
-        "SELECT id, total_price, status, payment_method, gateway_provider, "
+        "SELECT id, total_price, status, payment_method, card_number, gateway_provider, "
         "gateway_transaction_id, order_date FROM orders "
         f"WHERE gateway_transaction_id = '{transaction_id}'"
     )
@@ -646,7 +651,7 @@ def latest_orders():
     conn = get_db()
     rows = conn.execute(
         """
-        SELECT id, total_price, shipping_note, status, payment_method, gateway_provider,
+        SELECT id, total_price, shipping_note, status, payment_method, card_number, gateway_provider,
                gateway_transaction_id, order_date
         FROM orders
         WHERE user_id = ?
