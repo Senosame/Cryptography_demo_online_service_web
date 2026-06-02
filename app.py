@@ -23,7 +23,7 @@ ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 DEFAULT_PRODUCT_IMAGES = {
     "Bàn phím cơ F75": "/static/product-images/keyboard-f75.svg",
     "Chuột gaming X6": "/static/product-images/mouse-x6.svg",
-    "Tai nghe học online": "/static/product-images/headset-online.svg",
+    "Tai nghe có dây": "/static/product-images/headset-online.svg",
     "USB Security Key": "/static/product-images/security-key.svg",
 }
 
@@ -114,7 +114,7 @@ def init_db():
             [
                 ("Socrates Mall", "Bàn phím cơ F75", "Bàn phím cơ nhỏ gọn, LED RGB, phù hợp học tập và làm việc.", 890000, 20, DEFAULT_PRODUCT_IMAGES["Bàn phím cơ F75"]),
                 ("Socrates Mall", "Chuột gaming X6", "Chuột không dây nhẹ, cảm biến ổn định, pin sử dụng lâu.", 420000, 35, DEFAULT_PRODUCT_IMAGES["Chuột gaming X6"]),
-                ("Socrates Mall", "Tai nghe học online", "Tai nghe có mic lọc tiếng ồn, dùng tốt cho lớp học và họp nhóm.", 350000, 40, DEFAULT_PRODUCT_IMAGES["Tai nghe học online"]),
+                ("Socrates Mall", "Tai nghe có dây", "Tai nghe có mic lọc tiếng ồn, dùng tốt cho lớp học và họp nhóm.", 350000, 40, DEFAULT_PRODUCT_IMAGES["Tai nghe có dây"]),
                 ("Socrates Mall", "USB Security Key", "Khóa bảo mật dùng cho đăng nhập và demo xác thực.", 250000, 15, DEFAULT_PRODUCT_IMAGES["USB Security Key"]),
             ],
         )
@@ -127,6 +127,14 @@ def init_db():
             """,
             (image_url, product_name),
         )
+    cursor.execute(
+        """
+        UPDATE products
+        SET name = ?
+        WHERE name = ?
+        """,
+        ("Tai nghe có dây", "Tai nghe học online"),
+    )
     conn.commit()
     conn.close()
 
