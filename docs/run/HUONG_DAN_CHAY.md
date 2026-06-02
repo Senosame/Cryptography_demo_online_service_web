@@ -22,9 +22,14 @@ python -m venv .venv
 
 ## 4. Chay chuong trinh
 
+Tu ban da sua JWT de bat buoc co secret, can set bien moi truong `JWT_SECRET` truoc khi chay app:
+
 ```powershell
+$env:JWT_SECRET="your-strong-demo-secret-123456"
 .\.venv\Scripts\python.exe app.py
 ```
+
+Luu y: cach set bang `$env:JWT_SECRET=...` chi co hieu luc trong cua so PowerShell hien tai. Neu dong terminal va mo lai, can set lai bien nay.
 
 Neu chay thanh cong, terminal se hien Flask server dang lang nghe o cong `5000`.
 
@@ -49,6 +54,29 @@ Ctrl + C
 ```
 
 ## Loi thuong gap
+
+### Chua set `JWT_SECRET`
+
+Neu gap loi:
+
+```text
+RuntimeError: JWT_SECRET is required
+```
+
+Hay set bien moi truong truoc khi chay app:
+
+```powershell
+$env:JWT_SECRET="your-strong-demo-secret-123456"
+.\.venv\Scripts\python.exe app.py
+```
+
+Neu muon luu lau dai cho user Windows:
+
+```powershell
+setx JWT_SECRET "your-strong-demo-secret-123456"
+```
+
+Sau khi chay `setx`, dong PowerShell va mo lai terminal moi.
 
 ### Thieu module `jwt`
 
