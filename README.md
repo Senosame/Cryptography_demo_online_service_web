@@ -1,5 +1,27 @@
 # Socrates Shop
 
+## HTTPS va chung chi public
+
+Du an co san endpoint `/certificate` de nguoi khac xem/tai file chung chi `certs/server.crt`.
+
+Chay HTTPS trong cung mang LAN:
+
+```powershell
+$env:JWT_SECRET="your-strong-demo-secret-123456"
+$env:SSL_CERT_FILE="certs\server.crt"
+$env:SSL_KEY_FILE="certs\server.key"
+.\.venv\Scripts\python.exe app.py
+```
+
+Sau do nguoi khac co the truy cap:
+
+```text
+https://192.168.1.164:5000
+https://192.168.1.164:5000/certificate
+```
+
+Chi chia se file `certs/server.crt`. Khong chia se `certs/server.key`.
+
 Trang web bán hàng local bằng Flask + SQLite. Bản này không cần Docker, MySQL hoặc Kafka.
 
 ## Chạy local

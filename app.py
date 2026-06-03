@@ -6,7 +6,7 @@ import uuid
 from functools import wraps
 
 import jwt
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_file, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -20,6 +20,7 @@ if not JWT_SECRET:
     raise RuntimeError("JWT_SECRET is required")
 JWT_ALGORITHM = "HS256"
 UPLOAD_FOLDER = os.path.join(app.static_folder, "uploads")
+CERTIFICATE_PATH = os.environ.get("CERTIFICATE_PATH", os.path.join("certs", "server.crt"))
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 DEFAULT_PRODUCT_IMAGES = {
@@ -241,6 +242,18 @@ def seller_page():
 @app.route("/checkout")
 def checkout_page():
     return render_template("checkout.html", user=session.get("username"))
+
+
+@app.get("/certificate")
+def certificate():
+    if not os.path.exists(CERTIFICATE_PATH):
+        return jsonify({"status": "error", "message": "Chua co file chung chi tren server."}), 404
+    return send_file(
+        CERTIFICATE_PATH,
+        mimetype="application/x-x509-ca-cert",
+        as_attachment=False,
+        download_name=os.path.basename(CERTIFICATE_PATH),
+    )
 
 
 @app.get("/api/health")
@@ -707,5 +720,15 @@ def latest_orders():
 
 init_db()
 
+def get_ssl_context():
+    cert_file = os.environ.get("SSL_CERT_FILE")
+    key_file = os.environ.get("SSL_KEY_FILE")
+    if cert_file and key_file:
+        return cert_file, key_file
+    return None
+
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app_host = os.environ.get("APP_HOST", "0.0.0.0")
+    app_port = int(os.environ.get("APP_PORT", "5000"))
+    app.run(host=app_host, port=app_port, debug=True, ssl_context=get_ssl_context())

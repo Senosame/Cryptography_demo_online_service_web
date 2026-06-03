@@ -39,6 +39,29 @@ Mo trinh duyet va truy cap:
 http://127.0.0.1:5000
 ```
 
+Neu muon nguoi khac trong cung mang truy cap bang HTTPS, dung cert da tao san trong thu muc `certs`:
+
+```powershell
+$env:JWT_SECRET="your-strong-demo-secret-123456"
+$env:SSL_CERT_FILE="certs\server.crt"
+$env:SSL_KEY_FILE="certs\server.key"
+.\.venv\Scripts\python.exe app.py
+```
+
+Nguoi khac trong cung Wi-Fi/LAN co the truy cap bang IP cua may chay server, vi du:
+
+```text
+https://192.168.1.164:5000
+```
+
+File chung chi public co the xem/tai tai:
+
+```text
+https://192.168.1.164:5000/certificate
+```
+
+Day la self-signed certificate de demo, trinh duyet co the hien canh bao bao mat. Chi chia se file `certs\server.crt`; khong chia se `certs\server.key`.
+
 Trang thanh toan rieng nam tai:
 
 ```text
